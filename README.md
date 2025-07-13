@@ -128,87 +128,13 @@ With Intel NPU hardware acceleration:
 | Embedding Generation | 180ms | 35ms | 5.1x |
 | Capability Matching | 85ms | 15ms | 5.7x |
 
-## Architecture
+## Documentation
 
-```
-NEMWAS/
-├── src/
-│   ├── core/           # Core agent and NPU management
-│   ├── capability/     # Learning and capability system
-│   ├── performance/    # Tracking and optimization
-│   ├── nlp/           # Natural language processing
-│   └── plugins/       # Plugin system
-├── models/            # Model storage
-├── plugins/           # Plugin directory
-├── config/            # Configuration files
-└── scripts/           # Setup and utility scripts
-```
-
-## Configuration
-
-Edit `config/default.yaml` to customize:
-
-```yaml
-# Use Mistral-7B instead of TinyLlama
-models:
-  default_model_path: "./models/mistral-7b.xml"
-
-# Adjust NPU settings
-npu:
-  compilation_mode: "THROUGHPUT"  # For batch processing
-  max_memory_mb: 4096            # Increase memory limit
-
-# Enable debug logging
-system:
-  log_level: "DEBUG"
-```
-
-## Creating Plugins
-
-```python
-# plugins/my_plugin.py
-from src.plugins.interface import ToolPlugin, PluginMetadata
-
-class MyPlugin(ToolPlugin):
-    def get_metadata(self) -> PluginMetadata:
-        return PluginMetadata(
-            name="my_tool",
-            version="1.0.0",
-            author="Your Name",
-            description="Does something useful",
-            npu_compatible=True
-        )
-    
-    def get_tool_definition(self):
-        return {
-            'name': 'my_tool',
-            'description': 'My custom tool',
-            'function': self.execute,
-            'parameters': {'input': 'str'}
-        }
-    
-    def execute(self, input: str) -> str:
-        return f"Processed: {input}"
-
-plugin_class = MyPlugin
-```
-
-## API Reference
-
-### REST API Endpoints
-
-- `GET /` - Service info
-- `GET /health` - Health check
-- `GET /status` - System status
-- `POST /tasks` - Execute task
-- `GET /agents` - List agents
-- `POST /agents` - Create agent
-- `GET /plugins` - List plugins
-- `GET /performance/analysis` - Performance analysis
-
-### WebSocket
-
-Connect to `ws://localhost:8080/ws` for real-time updates.
+- **[Architecture](docs/architecture.md):** A high-level overview of the NEMWAS architecture.
+- **[API Reference](docs/api_reference.md):** Detailed documentation for the NEMWAS API.
+- **[Plugin Development](docs/plugin_development.md):** A guide for creating custom plugins.
+- **[Deployment](docs/deployment.md):** Instructions for deploying the NEMWAS application.
+- **[Performance Tuning](docs/performance_tuning.md):** A guide for tuning the performance of the NEMWAS application.
 
 ## Troubleshooting
 
