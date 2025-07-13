@@ -1,0 +1,115 @@
+# NEMWAS Production Configuration
+
+system:
+  name: "NEMWAS-Production"
+  version: "1.0.0"
+  log_level: "INFO"
+
+# Model configuration
+models:
+  default_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  default_model_path: "/app/models/original/tinyllama-1.1b-chat.xml"
+  model_cache_dir: "/app/models/cache"
+  quantization_preset: "performance"  # Optimize for production
+
+# NPU/Hardware configuration
+npu:
+  device_priority:
+    - "NPU"
+    - "GPU"
+    - "CPU"
+  cache_dir: "/app/models/cache"
+  enable_profiling: false
+  compilation_mode: "THROUGHPUT"  # Optimize for throughput in production
+  turbo_mode: true
+  max_memory_mb: 4096
+
+# Agent configuration
+agents:
+  max_agents: 50  # Higher limit for production
+  max_context_length: 4096
+  default_temperature: 0.7
+  max_new_tokens: 1024
+  max_iterations: 10
+  enable_learning: true
+  enable_performance_tracking: true
+
+# Performance tracking
+performance:
+  metrics_dir: "/app/data/metrics"
+  enable_prometheus: true
+  prometheus_port: 9090
+  history_size: 10000  # Larger history for production
+  export_interval: 1800  # 30 minutes
+
+# Plugin system
+plugins:
+  plugin_dirs:
+    - "/app/plugins/builtin"
+    - "/app/plugins/community"
+  auto_load:
+    - "web_search"
+  enable_hot_reload: false  # Disable in production
+  sandbox_plugins: true  # Enable sandboxing for security
+
+# API server
+api:
+  host: "0.0.0.0"
+  port: 8080
+  enable_cors: true
+  cors_origins: ["http://localhost:3000", "https://your-domain.com"]
+  enable_docs: false  # Disable in production
+  max_request_size: 10485760  # 10MB
+  rate_limit: 1000  # Higher rate limit for production
+
+# Storage paths
+storage:
+  data_dir: "/app/data"
+  capability_dir: "/app/data/capabilities"
+  embedding_dir: "/app/data/embeddings"
+  metrics_dir: "/app/data/metrics"
+  enable_backups: true
+  backup_interval: 3600  # 1 hour
+
+# Natural Language Interface
+nlp:
+  embedding_model: "all-MiniLM-L6-v2"
+  enable_completions: true
+  max_completions: 10
+  confidence_threshold: 0.8
+
+# Resource limits
+resources:
+  max_memory_gb: 7  # Leave 1GB for system
+  warn_memory_gb: 6
+  max_cpu_threads: 8  # Use more threads in production
+  enable_memory_monitoring: true
+  memory_check_interval: 30  # More frequent checks
+
+# Redis cache configuration
+redis:
+  enabled: true
+  host: "redis"
+  port: 6379
+  db: 0
+  ttl: 3600  # 1 hour cache TTL
+
+# Logging configuration (production)
+logging:
+  log_dir: "/app/logs"
+  max_log_size_mb: 1000  # 1GB log files
+  max_log_files: 20
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  component_levels:
+    "nemwas.core": "INFO"
+    "nemwas.npu": "WARNING"
+    "nemwas.api": "INFO"
+    "nemwas.plugins": "INFO"
+
+# Production settings
+production:
+  enable_telemetry: true
+  error_reporting: true
+  auto_restart: true
+  health_check_interval: 60  # seconds
+  graceful_shutdown_timeout: 30  # seconds

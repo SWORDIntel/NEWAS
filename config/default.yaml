@@ -1,0 +1,173 @@
+# NEMWAS Default Configuration
+
+system:
+  name: "NEMWAS"
+  version: "1.0.0"
+  log_level: "INFO"
+
+# Model configuration
+models:
+  # Default model - TinyLlama is ideal for NPU
+  default_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  default_model_path: "./models/original/tinyllama-1.1b-chat.xml"
+  
+  # Model cache directory
+  model_cache_dir: "./models/cache"
+  
+  # Quantization settings for NPU optimization
+  quantization_preset: "mixed"  # Options: performance, mixed, accuracy
+
+# NPU/Hardware configuration
+npu:
+  # Device priority order
+  device_priority:
+    - "NPU"      # Intel Neural Processing Unit
+    - "GPU"      # Intel integrated/discrete GPU
+    - "CPU"      # Fallback to CPU
+  
+  # NPU-specific settings
+  cache_dir: "./models/cache"
+  enable_profiling: false
+  compilation_mode: "LATENCY"  # Options: LATENCY, THROUGHPUT
+  turbo_mode: true
+  
+  # Memory limits for NPU (MB)
+  max_memory_mb: 2048
+
+# Agent configuration
+agents:
+  # Maximum number of concurrent agents
+  max_agents: 10
+  
+  # Context window settings
+  max_context_length: 4096
+  
+  # Generation parameters
+  default_temperature: 0.7
+  max_new_tokens: 512
+  
+  # ReAct loop settings
+  max_iterations: 5
+  
+  # Learning and tracking
+  enable_learning: true
+  enable_performance_tracking: true
+
+# Performance tracking
+performance:
+  # Metrics storage
+  metrics_dir: "./data/metrics"
+  
+  # Prometheus metrics
+  enable_prometheus: true
+  prometheus_port: 9090
+  
+  # History settings
+  history_size: 1000
+  export_interval: 3600  # seconds
+  
+  # Resource monitoring
+  monitor_interval: 10  # seconds
+
+# Plugin system
+plugins:
+  # Plugin directories
+  plugin_dirs:
+    - "./plugins/builtin"
+    - "./plugins/community"
+  
+  # Auto-load these plugins on startup
+  auto_load: []
+  
+  # Hot reload support
+  enable_hot_reload: true
+  
+  # Plugin security
+  sandbox_plugins: false  # Set to true for untrusted plugins
+
+# API server
+api:
+  # Network settings
+  host: "0.0.0.0"
+  port: 8080
+  
+  # CORS settings
+  enable_cors: true
+  cors_origins: ["*"]
+  
+  # Documentation
+  enable_docs: true
+  docs_url: "/docs"
+  
+  # Request limits
+  max_request_size: 10485760  # 10MB
+  rate_limit: 100  # requests per minute
+
+# Storage paths
+storage:
+  # Base data directory
+  data_dir: "./data"
+  
+  # Specific storage locations
+  capability_dir: "./data/capabilities"
+  embedding_dir: "./data/embeddings"
+  metrics_dir: "./data/metrics"
+  
+  # Backup settings
+  enable_backups: true
+  backup_interval: 86400  # 24 hours
+
+# Natural Language Interface
+nlp:
+  # Embedding model for semantic search
+  embedding_model: "all-MiniLM-L6-v2"
+  
+  # Command completion
+  enable_completions: true
+  max_completions: 5
+  
+  # Intent recognition
+  confidence_threshold: 0.7
+
+# Resource limits
+resources:
+  # Memory limits
+  max_memory_gb: 8
+  warn_memory_gb: 6
+  
+  # CPU limits
+  max_cpu_threads: 4
+  
+  # Monitoring
+  enable_memory_monitoring: true
+  memory_check_interval: 60  # seconds
+
+# Logging configuration
+logging:
+  # Log file settings
+  log_dir: "./logs"
+  max_log_size_mb: 100
+  max_log_files: 10
+  
+  # Log format
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Component-specific levels
+  component_levels:
+    "nemwas.core": "INFO"
+    "nemwas.npu": "WARNING"
+    "nemwas.api": "INFO"
+    "nemwas.plugins": "DEBUG"
+
+# Development settings
+development:
+  # Debug mode
+  debug: false
+  
+  # Profiling
+  enable_profiling: false
+  profile_dir: "./profiles"
+  
+  # Testing
+  test_mode: false
+  mock_npu: false

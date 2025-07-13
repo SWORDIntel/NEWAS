@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  nemwas:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        OPENVINO_VERSION: 2024.0.0
+        PYTHON_VERSION: 3.11
+    
+    container_name: nemwas-core
+    
+    # Privileged mode needed for NPU access
+    privileged: true
+    
+    # Device access for NPU
+    devices:
+      - /dev/dri:/dev/dri  # Intel GPU
+      # Add NPU device when available
+      # - /dev/npu0:/dev/npu0
+    
+    volumes:
+      # Model storage
+      - nemwas-models:/app/models
+      
+      # Data persistence
+      - nemwas-data:/app/data
+      
+      # Plugin directory
+      - ./plugins:/app/plugins/community:ro
+      
+      # Configuration override
+      - ./config/production.yaml:/app/config/production.yaml:ro
+      
+      # NPU driver access (if using external NPU)
+      - /dev/bus/usb:/dev/bus/usb
+    
+    environment:
+      # NEMWAS configuration
+      - NEMWAS_CONFIG=/app/config/production.yaml
+      - NEMWAS_LOG_LEVEL=INFO
+      
+      # OpenVINO configuration
+      - OPENVINO_LOG_LEVEL=WARNING
+      - DEVICE_PRIORITY=NPU,GPU,CPU
+      
+      # Performance tuning
+      - OMP_NUM_THREADS=4
+      - TBB_NUM_THREADS=4
+      - MKL_NUM_THREADS=4
+      
+      # NPU configuration
+      - NPU_COMPILER_MODE=THROUGHPUT
+      - NPU_ENABLE_PROFILING=0
+    
+    ports:
+      - "8080:8080"  # API
+      - "9090:9090"  # Prometheus metrics
+      - "8081:8081"  # Web UI
+    
+    networks:
+      - nemwas-network
+    
+    restart: unless-stopped
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: nemwas-prometheus
+    
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    
+    ports:
+      - "9091:9090"
+    
+    networks:
+      - nemwas-network
+    
+    restart: unless-stopped
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: nemwas-grafana
+    
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    
+    ports:
+      - "3000:3000"
+    
+    networks:
+      - nemwas-network
+    
+    restart: unless-stopped
+    
+    depends_on:
+      - prometheus
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: nemwas-redis
+    
+    command: redis-server --appendonly yes
+    
+    volumes:
+      - redis-data:/data
+    
+    ports:
+      - "6379:6379"
+    
+    networks:
+      - nemwas-network
+    
+    restart: unless-stopped
+
+volumes:
+  nemwas-models:
+    driver: local
+  nemwas-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  nemwas-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

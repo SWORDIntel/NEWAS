@@ -1,0 +1,153 @@
+# Alert rules for NEMWAS monitoring
+groups:
+  - name: nemwas_alerts
+    interval: 30s
+    rules:
+      # High task failure rate
+      - alert: HighTaskFailureRate
+        expr: |
+          (
+            sum(rate(nemwas_tasks_total{status="failure"}[5m]))
+            /
+            sum(rate(nemwas_tasks_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High task failure rate detected"
+          description: "Task failure rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # Very high task failure rate
+      - alert: VeryHighTaskFailureRate
+        expr: |
+          (
+            sum(rate(nemwas_tasks_total{status="failure"}[5m]))
+            /
+            sum(rate(nemwas_tasks_total[5m]))
+          ) > 0.3
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical task failure rate"
+          description: "Task failure rate is {{ $value | humanizePercentage }} - immediate attention required"
+
+      # High task latency
+      - alert: HighTaskLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(nemwas_task_duration_seconds_bucket[5m])) by (le, agent_id)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High task latency for agent {{ $labels.agent_id }}"
+          description: "95th percentile latency is {{ $value }}s"
+
+      # NPU utilization issues
+      - alert: NPUUtilizationHigh
+        expr: nemwas_npu_utilization_percent > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NPU utilization is high"
+          description: "NPU utilization has been above 90% for 10 minutes (current: {{ $value }}%)"
+
+      # No active agents
+      - alert: NoActiveAgents
+        expr: nemwas_active_agents == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "No active agents available"
+          description: "The system has no active agents to process tasks"
+
+      # Memory usage high
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            sum(nemwas_memory_usage_bytes) / 1024 / 1024 / 1024
+          ) > 6
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Total memory usage is {{ $value | humanize }}GB"
+
+      # Agent performance degradation
+      - alert: AgentPerformanceDegradation
+        expr: |
+          (
+            rate(nemwas_task_duration_seconds_sum[5m])
+            /
+            rate(nemwas_task_duration_seconds_count[5m])
+          ) > 1.5 * (
+            rate(nemwas_task_duration_seconds_sum[1h] offset 1h)
+            /
+            rate(nemwas_task_duration_seconds_count[1h] offset 1h)
+          )
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent {{ $labels.agent_id }} performance degradation"
+          description: "Average task duration has increased by more than 50% compared to 1 hour ago"
+
+      # Low success rate
+      - alert: LowSuccessRate
+        expr: |
+          (
+            sum(nemwas_tasks_total{status="success"}) by (agent_id)
+            /
+            sum(nemwas_tasks_total) by (agent_id)
+          ) < 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low success rate for agent {{ $labels.agent_id }}"
+          description: "Success rate is {{ $value | humanizePercentage }} over the last 10 minutes"
+
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}%"
+
+      # Disk space low
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"
+
+      # Service down
+      - alert: NEMWASServiceDown
+        expr: up{job="nemwas-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NEMWAS API service is down"
+          description: "NEMWAS API has been unreachable for more than 1 minute"
