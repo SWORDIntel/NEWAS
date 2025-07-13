@@ -14,8 +14,9 @@ from rich.logging import RichHandler
 # NEMWAS imports
 from src.core.agent import NEMWASAgent, AgentConfig
 from src.core.npu_manager import NPUManager
+from src.core.react import Tool
 from src.nlp.interface import NaturalLanguageInterface
-from src.plugins.interface import PluginRegistry
+from src.plugins.interface import PluginRegistry, ToolPlugin
 from src.performance.tracker import PerformanceTracker
 from src.utils.config import load_config
 from src.api.server import create_app
@@ -41,7 +42,7 @@ class NEMWASCore:
         logger.info("🚀 Initializing NEMWAS Core...")
         
         # NPU Manager
-        self.npu_manager = NPUManager(cache_dir=self.config.get('cache_dir', './models/cache'))
+        self.npu_manager = NPUManager(self.config, cache_dir=self.config.get('cache_dir', './models/cache'))
         
         # Performance Tracker
         self.performance_tracker = PerformanceTracker(
@@ -81,6 +82,10 @@ class NEMWASCore:
             agent = NEMWASAgent(agent_config, self.npu_manager)
             self.agents[agent.agent_id] = agent
             logger.info(f"Created default agent: {agent.agent_id}")
+
+            # Register high-priority plugins
+            register_high_priority_plugins(agent, self.plugin_registry)
+
         except Exception as e:
             logger.error(f"Failed to create default agent: {e}")
     
@@ -249,6 +254,32 @@ class NEMWASCore:
         
         logger.info("NEMWAS shutdown complete")
 
+
+def register_high_priority_plugins(agent: NEMWASAgent, plugin_registry: PluginRegistry):
+    """Register the high-priority plugins with the agent"""
+
+    # Load plugins
+    plugins_to_load = [
+        "plugins/code_architect.py",
+        "plugins/security_scanner.py",
+        "plugins/memory_consolidator.py",
+        "plugins/metrics_exporter.py"
+    ]
+
+    for plugin_path in plugins_to_load:
+        plugin_id = plugin_registry.load_plugin(plugin_path)
+        if plugin_id:
+            plugin = plugin_registry.get_plugin(plugin_id)
+
+            # Register as agent tool
+            if isinstance(plugin, ToolPlugin):
+                tool_def = plugin.get_tool_definition()
+                agent.register_tool(Tool(
+                    name=tool_def['name'],
+                    description=tool_def['description'],
+                    function=tool_def['function'],
+                    parameters=tool_def['parameters']
+                ))
 
 @click.command()
 @click.option('--config', '-c', default='config/default.yaml', help='Configuration file path')

@@ -6,13 +6,15 @@ from datetime import datetime
 import asyncio
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import prometheus_client
 
+from .app import app
 from .background import BackgroundTaskManager
+from .websocket import handle_agent_updates
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +67,8 @@ class SystemStatus(BaseModel):
     system_metrics: Dict[str, Any]
 
 
-def create_app(nemwas_core) -> FastAPI:
+def create_app(nemwas_core):
     """Create FastAPI application"""
-
-    app = FastAPI(
-        title="NEMWAS API",
-        description="Neural-Enhanced Multi-Workforce Agent System API",
-        version="1.0.0"
-    )
 
     # Add CORS middleware
     app.add_middleware(
@@ -422,6 +418,11 @@ def create_app(nemwas_core) -> FastAPI:
 
         # Remove disconnected clients
         app.state.websockets -= disconnected
+
+    @app.websocket("/ws/agent-updates")
+    async def agent_updates_endpoint(websocket: WebSocket):
+        """WebSocket endpoint for streaming agent updates"""
+        await handle_agent_updates(websocket)
 
     @app.on_event("startup")
     async def startup_event():

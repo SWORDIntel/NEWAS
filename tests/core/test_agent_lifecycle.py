@@ -1,6 +1,6 @@
 import pytest
-from nem.core.agent import NEMWASAgent
-from nem.core.config import AgentConfig
+from core.agent import NEMWASAgent
+from core.config import AgentConfig
 
 def test_agent_creation_with_custom_capabilities():
     config = AgentConfig(

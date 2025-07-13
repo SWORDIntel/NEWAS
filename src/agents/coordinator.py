@@ -74,3 +74,55 @@ class AgentCoordinator:
         if metrics["tasks"] == 0:
             return 0.5
         return metrics["successes"] / metrics["tasks"]
+
+class DistributedCoordinator:
+    def __init__(self, node_id: str, discovery_service: str):
+        self.node_id = node_id
+        self.discovery = discovery_service
+        self.nodes = {}
+
+    async def register_node(self):
+        """Register this node with discovery service"""
+        await self.discovery.register({
+            "node_id": self.node_id,
+            "capabilities": self._get_node_capabilities(),
+            "agents": len(self.local_agents),
+            "resources": self._get_available_resources()
+        })
+
+    async def discover_nodes(self):
+        """Discover other NEMWAS nodes"""
+        self.nodes = await self.discovery.get_active_nodes()
+
+    async def distribute_task(self, task):
+        """Route task to best node"""
+        best_node = self._select_optimal_node(task)
+        if best_node == self.node_id:
+            return await self._execute_locally(task)
+        else:
+            return await self._execute_remotely(best_node, task)
+
+    def _get_node_capabilities(self) -> List[str]:
+        """Get the capabilities of the local node"""
+        # Placeholder
+        return []
+
+    def _get_available_resources(self) -> Dict[str, Any]:
+        """Get the available resources of the local node"""
+        # Placeholder
+        return {}
+
+    def _select_optimal_node(self, task) -> str:
+        """Select the optimal node to execute a task"""
+        # Placeholder
+        return self.node_id
+
+    async def _execute_locally(self, task):
+        """Execute a task on the local node"""
+        # Placeholder
+        pass
+
+    async def _execute_remotely(self, node_id: str, task):
+        """Execute a task on a remote node"""
+        # Placeholder
+        pass

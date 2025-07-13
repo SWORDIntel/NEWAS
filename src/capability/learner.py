@@ -299,6 +299,19 @@ class CapabilityLearner:
 
         return results
 
+    def search_capabilities(self, query: str, limit: int = 5) -> List[Capability]:
+        """Search capabilities using semantic similarity"""
+        query_embedding = self._generate_embedding(query)
+
+        # Use FAISS for efficient search
+        distances, indices = self.capability_index.search(
+            query_embedding.reshape(1, -1),
+            limit
+        )
+
+        return [self.capabilities[list(self.capabilities.keys())[i]]
+                for i in indices[0]]
+
     def get_capability_suggestions(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Get capability suggestions based on context"""
 

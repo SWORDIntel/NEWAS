@@ -1,5 +1,5 @@
 import pytest
-from nem.core.react import ReAct
+from core.react import ReAct
 
 def test_thought_action_observation_loop():
     # This is a placeholder test.

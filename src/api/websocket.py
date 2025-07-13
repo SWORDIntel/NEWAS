@@ -3,6 +3,7 @@
 import json
 import logging
 import asyncio
+import time
 from typing import Dict, Set, Optional, Any
 from datetime import datetime
 import uuid
@@ -11,6 +12,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
 from .models import WebSocketMessage, WebSocketCommand, TaskStatus
+from .app import app
 
 logger = logging.getLogger(__name__)
 
@@ -484,3 +486,20 @@ class WebSocketHandler:
             ),
             event_type="system_status"
         )
+
+async def handle_agent_updates(websocket: WebSocket):
+    """Stream agent status updates"""
+    await websocket.accept()
+
+    while True:
+        # Get tracker data
+        agent_data = app.state.core.agent_tracker.get_all_agent_data()
+
+        # Send updates
+        await websocket.send_json({
+            "type": "agent_status",
+            "data": agent_data,
+            "timestamp": time.time()
+        })
+
+        await asyncio.sleep(1)
