@@ -44,14 +44,12 @@ def test_imports():
             print(f"✗ Failed to import {module_name}: {e}")
             return False
     
-    print("
-✅ All imports successful!")
+    print("✅ All imports successful!")
     return True
 
 def test_basic_functionality():
     """Test basic NEMWAS functionality"""
-    print("
-Testing basic functionality...")
+    print("Testing basic functionality...")
     print("=" * 50)
     
     try:
@@ -72,8 +70,7 @@ Testing basic functionality...")
         from src.utils import get_default_config
         
         # Test configuration
-        print("
-Testing configuration...")
+        print("Testing configuration...")
         config = get_default_config()
         print(f"  System name: {config['system']['name']}")
         print(f"  Version: {config['system']['version']}")
@@ -83,8 +80,7 @@ Testing configuration...")
         print(f"✗ Configuration test failed: {e}")
         return False
     
-    print("
-✅ Basic functionality tests passed!")
+    print("✅ Basic functionality tests passed!")
     return True
 
 if __name__ == "__main__":
@@ -102,10 +98,8 @@ if __name__ == "__main__":
         functionality_success = test_basic_functionality()
         
         if functionality_success:
-            print("
-🎉 All tests passed! NEMWAS is ready to use.")
+            print("🎉 All tests passed! NEMWAS is ready to use.")
             sys.exit(0)
     
-    print("
-❌ Some tests failed. Please check the output above.")
+    print("❌ Some tests failed. Please check the output above.")
     sys.exit(1)
