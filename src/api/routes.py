@@ -210,6 +210,15 @@ async def create_agent(request: AgentCreateRequest, core=Depends(get_core)):
 
         logger.info(f"Created agent: {agent.agent_id} ({agent.config.name})")
 
+        # Broadcast agent creation
+        if hasattr(core, 'websocket_handler'):
+            asyncio.create_task(core.websocket_handler.broadcast_agent_update(
+                agent.agent_id,
+                "created",
+                name=agent.config.name,
+                status="idle"
+            ))
+
         # Return agent info
         return AgentInfo(
             agent_id=agent.agent_id,
@@ -273,6 +282,13 @@ async def delete_agent(agent_id: str = Path(...), core=Depends(get_core)):
     del core.agents[agent_id]
 
     logger.info(f"Deleted agent: {agent_id}")
+
+    # Broadcast agent deletion
+    if hasattr(core, 'websocket_handler'):
+        asyncio.create_task(core.websocket_handler.broadcast_agent_update(
+            agent_id,
+            "deleted"
+        ))
 
     return {
         "message": f"Agent {agent_id} deleted",
@@ -743,9 +759,62 @@ async def task_websocket(websocket: WebSocket, core=Depends(get_core)):
 
 
 # Include all routers in a main router
+dashboard_router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+@dashboard_router.get("/overview")
+async def get_overview_metrics(core=Depends(get_core)):
+    """Aggregated metrics for dashboard overview"""
+    agent_summary = {
+        "total": len(core.agents),
+        "active": sum(1 for a in core.agents.values() if a.context.current_task),
+        "idle": sum(1 for a in core.agents.values() if not a.context.current_task),
+        "failed": 0  # This would require more sophisticated tracking
+    }
+
+    task_summary = {
+        "queued": 0,  # This would require a task queue implementation
+        "processing": agent_summary["active"],
+        "completed24h": 0, # This would require historical data
+        "failed24h": 0 # This would require historical data
+    }
+
+    performance_summary = core.performance_tracker.get_system_metrics()
+
+    npu_util = None
+    if "NPU" in core.npu_manager.available_devices:
+        npu_metrics = core.npu_manager.get_device_metrics("NPU")
+        npu_util = npu_metrics.get("utilization", 0.0)
+
+    resource_summary = {
+        "npuUtilization": npu_util,
+        "gpuUtilization": 0, # Not implemented
+        "cpuUtilization": 0, # Not implemented
+        "memoryUsage": 0 # Not implemented
+    }
+
+    return {
+        "agents": agent_summary,
+        "tasks": task_summary,
+        "performance": performance_summary,
+        "resources": resource_summary
+    }
+
+@dashboard_router.websocket("/ws")
+async def dashboard_websocket(websocket: WebSocket, core=Depends(get_core)):
+    """Real-time dashboard updates"""
+    await websocket.accept()
+    try:
+        while True:
+            await websocket.send_json({"message": "hello"})
+            await asyncio.sleep(1)
+    except WebSocketDisconnect:
+        logger.info("Dashboard websocket disconnected")
+
+
 api_router = APIRouter()
 api_router.include_router(agent_router)
 api_router.include_router(task_router)
 api_router.include_router(system_router)
 api_router.include_router(plugin_router)
 api_router.include_router(metrics_router)
+api_router.include_router(dashboard_router)
