@@ -61,6 +61,10 @@ class NEMWASCore:
         
         # Agent pool
         self.agents = {}
+
+        # WebSocket Handler
+        from src.api.websocket import WebSocketHandler
+        self.websocket_handler = WebSocketHandler(self)
         
         # Create default agent
         self._create_default_agent()
@@ -204,9 +208,20 @@ class NEMWASCore:
             log_level="info"
         )
         server = uvicorn.Server(config)
+
+        # Start background tasks
+        asyncio.create_task(self._npu_metrics_broadcaster())
         
         await server.serve()
     
+    async def _npu_metrics_broadcaster(self):
+        """Periodically broadcast NPU metrics."""
+        while self.running:
+            if hasattr(self, 'websocket_handler') and "NPU" in self.npu_manager.available_devices:
+                metrics = self.npu_manager.get_device_metrics("NPU")
+                await self.websocket_handler.broadcast_npu_metrics(metrics)
+            await asyncio.sleep(5)  # Broadcast every 5 seconds
+
     def _load_plugins(self):
         """Load configured plugins"""
         

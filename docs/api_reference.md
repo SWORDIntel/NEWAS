@@ -192,3 +192,24 @@ Export metrics in specified format.
 - **Query Parameters:**
     - `format` (optional, string): The format to export the metrics in. Can be `json`, `csv`, or `prometheus`.
 - **Response:** JSON object with the export status.
+
+## Dashboard
+
+### `GET /dashboard/overview`
+
+Aggregated metrics for dashboard overview.
+
+- **Method:** `GET`
+- **Path:** `/dashboard/overview`
+- **Response:** JSON object with a comprehensive overview of the system's status.
+
+### `WEBSOCKET /dashboard/ws`
+
+Real-time dashboard updates.
+
+- **Path:** `/dashboard/ws`
+- **Events:**
+    - `agent.status.changed`: Sent when an agent's status changes.
+    - `task.completed`: Sent when a task is completed.
+    - `system.alert`: Sent when a system alert is triggered.
+    - `npu.metrics`: Sent periodically with NPU metrics.

@@ -347,16 +347,11 @@ class WebSocketHandler:
             )
 
             # Notify subscribers
-            await self.manager.broadcast(
-                WebSocketMessage(
-                    type="task_completed",
-                    data={
-                        "task_id": task_id,
-                        "agent_id": agent.agent_id,
-                        "status": "completed"
-                    }
-                ),
-                event_type="task_completed"
+            await self.broadcast_task_update(
+                task_id,
+                TaskStatus.COMPLETED,
+                agent_id=agent.agent_id,
+                result=result
             )
 
         except Exception as e:
@@ -370,16 +365,13 @@ class WebSocketHandler:
             )
 
             # Notify subscribers
-            await self.manager.broadcast(
-                WebSocketMessage(
-                    type="task_failed",
-                    data={
-                        "agent_id": agent_id,
-                        "error": str(e)
-                    }
-                ),
-                event_type="task_failed"
-            )
+            if 'task_id' in locals():
+                await self.broadcast_task_update(
+                    task_id,
+                    TaskStatus.FAILED,
+                    agent_id=agent.agent_id,
+                    error=str(e)
+                )
 
     async def handle_status(self, client_id: str, command: WebSocketCommand):
         """Handle status request"""
@@ -487,19 +479,27 @@ class WebSocketHandler:
             event_type="system_status"
         )
 
+    async def broadcast_npu_metrics(self, metrics: Dict[str, Any]):
+        """Broadcast NPU metrics"""
+        await self.manager.broadcast(
+            WebSocketMessage(
+                type="npu_metrics",
+                data=metrics
+            ),
+            event_type="npu_metrics"
+        )
+
 async def handle_agent_updates(websocket: WebSocket):
     """Stream agent status updates"""
     await websocket.accept()
-
-    while True:
-        # Get tracker data
-        agent_data = app.state.core.agent_tracker.get_all_agent_data()
-
-        # Send updates
-        await websocket.send_json({
-            "type": "agent_status",
-            "data": agent_data,
-            "timestamp": time.time()
-        })
-
-        await asyncio.sleep(1)
+    client_id = await app.state.websocket_handler.manager.connect(websocket)
+    await app.state.websocket_handler.manager.subscribe(client_id, "agent_status_changed")
+    await app.state.websocket_handler.manager.subscribe(client_id, "task_completed")
+    await app.state.websocket_handler.manager.subscribe(client_id, "system_alert")
+    await app.state.websocket_handler.manager.subscribe(client_id, "npu_metrics")
+    try:
+        while True:
+            # Keep the connection alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        await app.state.websocket_handler.manager.disconnect(client_id)
