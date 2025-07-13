@@ -1,5 +1,5 @@
 import pytest
-from nem.core.npu_manager import NPUManager
+from src.nem.core.npu_manager import NPUManager
 
 def test_npu_device_detection():
     manager = NPUManager()

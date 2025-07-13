@@ -171,3 +171,30 @@ development:
   # Testing
   test_mode: false
   mock_npu: false
+
+# Agent Tracking
+agent_tracking:
+  enabled: true
+  track_performance: true
+  track_memory: true
+  export_interval: 300  # 5 minutes
+
+# Memory Persistence
+memory_persistence:
+  enabled: true
+  path: "./data/agent_memories"
+  compression: true
+  max_memory_size_mb: 100
+
+# Performance Optimizer
+performance_optimizer:
+  enabled: true
+  slow_execution_threshold: 1.0
+  profile_enabled: false
+
+# Health Monitoring
+health_monitoring:
+  max_error_rate: 0.1  # 10%
+  max_exec_time: 5.0   # seconds
+  max_memory: 512      # MB
+  check_interval: 60   # seconds

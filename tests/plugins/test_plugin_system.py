@@ -1,5 +1,5 @@
 import pytest
-from nem.plugins.loader import PluginLoader
+from src.nem.plugins.loader import PluginLoader
 
 def test_plugin_discovery_in_directory():
     loader = PluginLoader(plugin_dirs=["plugins"])
