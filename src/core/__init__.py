@@ -1,9 +1,9 @@
 """Core NEMWAS components"""
 from .agent import NEMWASAgent, AgentConfig, AgentContext
 from .npu_manager import NPUManager
-from .react import ReActExecutor, Tool, ReActResult
+from .react import ReActLoop, Tool
 
 __all__ = [
     "NEMWASAgent", "AgentConfig", "AgentContext",
-    "NPUManager", "ReActExecutor", "Tool", "ReActResult"
+    "NPUManager", "ReActLoop", "Tool"
 ]

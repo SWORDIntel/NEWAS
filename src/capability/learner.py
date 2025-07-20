@@ -6,12 +6,23 @@ import time
 from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 import numpy as np
-import faiss
 from dataclasses import dataclass, asdict
 from collections import defaultdict
 
-from sentence_transformers import SentenceTransformer
-import torch
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    FAISS_AVAILABLE = False
+    logging.warning("faiss not available - vector search will be disabled")
+
+try:
+    from sentence_transformers import SentenceTransformer
+    import torch
+    EMBEDDINGS_AVAILABLE = True
+except ImportError:
+    EMBEDDINGS_AVAILABLE = False
+    logging.warning("sentence_transformers not available - embeddings will be disabled")
 
 from ..core.npu_manager import NPUManager
 from ..utils.config import Config
@@ -71,6 +82,11 @@ class CapabilityLearner:
 
         logger.info(f"Initializing embedder: {model_name}")
 
+        if not EMBEDDINGS_AVAILABLE:
+            logger.warning("SentenceTransformers not available - embeddings disabled")
+            self.embedder = None
+            return
+
         # Load sentence transformer
         self.embedder = SentenceTransformer(model_name)
 
@@ -115,11 +131,18 @@ class CapabilityLearner:
     def _initialize_index(self):
         """Initialize FAISS index for similarity search"""
 
+        if not self.embedder:
+            self.capability_index = None
+            return
+
         # Get embedding dimension
         embedding_dim = self.embedder.get_sentence_embedding_dimension()
 
         # Create index - using IndexFlatIP for inner product (cosine similarity)
-        self.capability_index = faiss.IndexFlatIP(embedding_dim)
+        if FAISS_AVAILABLE:
+            self.capability_index = faiss.IndexFlatIP(embedding_dim)
+        else:
+            self.capability_index = None
 
         # If we have many capabilities, we could use more sophisticated indices
         # like IndexIVFFlat or IndexHNSWFlat for better performance
@@ -304,6 +327,10 @@ class CapabilityLearner:
         query_embedding = self._generate_embedding(query)
 
         # Use FAISS for efficient search
+        if not FAISS_AVAILABLE or self.capability_index is None:
+            # Simple fallback when FAISS not available
+            return list(self.capabilities.values())[:limit]
+        
         distances, indices = self.capability_index.search(
             query_embedding.reshape(1, -1),
             limit
@@ -311,6 +338,19 @@ class CapabilityLearner:
 
         return [self.capabilities[list(self.capabilities.keys())[i]]
                 for i in indices[0]]
+    
+    def _simple_search(self, task_description: str, k: int = 5, threshold: float = 0.5) -> List[Capability]:
+        """Simple search fallback when FAISS is not available"""
+        # Return most recent capabilities
+        capabilities = list(self.capabilities.values())
+        # Sort by creation time if available
+        capabilities.sort(key=lambda c: c.created_at if hasattr(c, 'created_at') else 0, reverse=True)
+        return capabilities[:k]
+    
+    def _simple_retrieval(self, query_embedding: np.ndarray, k: int) -> Tuple[np.ndarray, np.ndarray]:
+        """Simple retrieval fallback when FAISS is not available"""
+        # Return dummy results
+        return np.zeros((1, k)), np.arange(k).reshape(1, -1)
 
     def get_capability_suggestions(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Get capability suggestions based on context"""

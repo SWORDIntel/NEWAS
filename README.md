@@ -59,6 +59,53 @@ python main.py
 python main.py --command "Calculate the factorial of 12"
 ```
 
+## Command-Line Interface
+
+### Basic Usage
+
+```bash
+# Start NEMWAS API server (default mode)
+python main.py
+
+# Start with custom configuration
+python main.py --config config/production.yaml
+
+# Interactive mode
+python main.py --interactive
+
+# Execute single command
+python main.py --command "Calculate the factorial of 12"
+```
+
+### Command-Line Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--config` | `-c` | Path to configuration file | `config/default.yaml` |
+| `--interactive` | `-i` | Start in interactive mode | False |
+| `--command` | | Execute single command and exit | None |
+
+### Model Download Script
+
+Download and optimize models for NPU deployment:
+
+```bash
+# Download minimal set for quick start
+python scripts/download_models.py --minimal
+
+# Download specific models
+python scripts/download_models.py --models tinyllama-1.1b mistral-7b
+
+# Download and optimize for NPU
+python scripts/download_models.py --optimize-npu
+
+# List available models
+python scripts/download_models.py --list
+
+# Specify output directory
+python scripts/download_models.py --output-dir /path/to/models
+```
+
 ## Usage
 
 ### Interactive Mode
@@ -118,6 +165,79 @@ docker-compose logs -f nemwas
 # - Grafana: http://localhost:3000
 ```
 
+## Model Configuration
+
+### Supported Models
+
+NEMWAS supports various models optimized for NPU deployment:
+
+| Model | Size | Purpose | NPU Optimized | FP16 Support |
+|-------|------|---------|---------------|--------------|
+| TinyLlama-1.1B | 1.1B | Default LLM, chat | ✅ | ✅ |
+| Mistral-7B | 7B | Advanced reasoning | ✅ | ✅ |
+| CodeBERT-base | 125M | Code understanding | ✅ | ✅ |
+| all-MiniLM-L6-v2 | 22M | Embeddings | ✅ | ✅ |
+
+### Model Configuration Options
+
+Configure models in `config/default.yaml`:
+
+```yaml
+models:
+  # Default model selection
+  default_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  default_model_path: "./models/original/tinyllama-1.1b-chat.xml"
+  
+  # Model cache directory
+  model_cache_dir: "./models/cache"
+  
+  # Quantization settings for NPU optimization
+  quantization_preset: "mixed"  # Options: performance, mixed, accuracy
+```
+
+### Quantization Presets
+
+| Preset | Description | Use Case | Performance | Accuracy |
+|--------|-------------|----------|-------------|----------|
+| `performance` | Maximum speed optimization | Production, real-time | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+| `mixed` | Balanced optimization | Default, general use | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| `accuracy` | Preserve model accuracy | Research, critical tasks | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+
+### FP16 Format Handling
+
+NEMWAS automatically handles FP16 (half-precision) format conversion for optimal NPU performance:
+
+1. **Automatic Conversion**: Models are converted to FP16 during OpenVINO optimization
+2. **Memory Efficiency**: FP16 reduces model size by ~50% with minimal accuracy loss
+3. **NPU Acceleration**: Intel NPU hardware has native FP16 support for faster inference
+
+```bash
+# Models are automatically converted to FP16 during download
+python scripts/download_models.py --optimize-npu
+
+# The conversion process includes:
+# 1. Download original model (FP32)
+# 2. Convert to OpenVINO IR format
+# 3. Apply FP16 compression (--compress_to_fp16 flag)
+# 4. Apply NPU-specific optimizations
+```
+
+### Model Directory Structure
+
+```
+models/
+├── original/          # Original downloaded models
+│   ├── tinyllama-1.1b-chat.bin
+│   └── mistral-7b.safetensors
+├── openvino/         # OpenVINO IR format (FP16)
+│   ├── tinyllama-1.1b-chat.xml
+│   └── tinyllama-1.1b-chat.bin
+├── cache/            # NPU-optimized cache
+│   └── npu_compiled_models/
+└── quantized/        # Additional quantization
+    └── int8_models/
+```
+
 ## NPU Performance
 
 With Intel NPU hardware acceleration:
@@ -135,6 +255,144 @@ With Intel NPU hardware acceleration:
 - **[Plugin Development](docs/plugin_development.md):** A guide for creating custom plugins.
 - **[Deployment](docs/deployment.md):** Instructions for deploying the NEMWAS application.
 - **[Performance Tuning](docs/performance_tuning.md):** A guide for tuning the performance of the NEMWAS application.
+
+## Advanced Usage
+
+### Using Different Models
+
+```python
+# Configure specific model for an agent
+from src.core.agent import AgentConfig, NEMWASAgent
+from src.core.npu_manager import NPUManager
+
+# For code analysis tasks
+code_agent_config = AgentConfig(
+    name="Code-Expert",
+    model_path="./models/openvino/codebert-base.xml",
+    device_preference=["NPU", "CPU"],
+    quantization_preset="accuracy"  # Prioritize accuracy for code
+)
+
+# For fast responses
+speed_agent_config = AgentConfig(
+    name="Speed-Agent", 
+    model_path="./models/openvino/tinyllama-1.1b.xml",
+    device_preference=["NPU"],
+    quantization_preset="performance"  # Maximum speed
+)
+
+# For complex reasoning
+reasoning_agent_config = AgentConfig(
+    name="Reasoning-Expert",
+    model_path="./models/openvino/mistral-7b.xml", 
+    device_preference=["NPU", "GPU", "CPU"],
+    quantization_preset="mixed"  # Balance speed and accuracy
+)
+```
+
+### Multi-Agent Workflows
+
+```python
+# Create specialized agents for complex tasks
+async def analyze_codebase(project_path):
+    # Code analysis agent
+    code_agent = await core.create_agent(
+        "analyze code structure and patterns",
+        model="codebert-base"
+    )
+    
+    # Documentation agent
+    doc_agent = await core.create_agent(
+        "generate documentation",
+        model="tinyllama-1.1b"
+    )
+    
+    # Security agent
+    security_agent = await core.create_agent(
+        "scan for security vulnerabilities",
+        model="mistral-7b"
+    )
+    
+    # Coordinate agents
+    results = await core.coordinate_agents([
+        (code_agent, "Analyze the codebase architecture"),
+        (security_agent, "Identify security issues"),
+        (doc_agent, "Generate API documentation")
+    ])
+    
+    return results
+```
+
+### Custom Plugin Development
+
+```python
+# Create a custom plugin for specific tasks
+from src.plugins.interface import ToolPlugin
+
+class DataAnalysisPlugin(ToolPlugin):
+    def __init__(self):
+        super().__init__(
+            name="data_analysis",
+            version="1.0.0",
+            description="Advanced data analysis tools"
+        )
+    
+    def get_tool_definition(self):
+        return {
+            "name": "analyze_dataset",
+            "description": "Analyze dataset with NPU acceleration",
+            "function": self.analyze_dataset,
+            "parameters": {
+                "dataset_path": "Path to dataset",
+                "analysis_type": "Type of analysis"
+            }
+        }
+    
+    async def analyze_dataset(self, dataset_path, analysis_type):
+        # Use NPU-accelerated operations
+        if self.npu_manager.has_npu():
+            # Fast NPU path
+            return await self._npu_analysis(dataset_path, analysis_type)
+        else:
+            # CPU fallback
+            return await self._cpu_analysis(dataset_path, analysis_type)
+```
+
+### Performance Optimization Tips
+
+1. **Model Selection**
+   - Use TinyLlama for general tasks (fastest)
+   - Use Mistral-7B for complex reasoning
+   - Use CodeBERT for code-specific tasks
+
+2. **Quantization Settings**
+   ```yaml
+   # For real-time applications
+   quantization_preset: "performance"
+   compilation_mode: "LATENCY"
+   
+   # For batch processing
+   quantization_preset: "mixed"
+   compilation_mode: "THROUGHPUT"
+   ```
+
+3. **Memory Management**
+   ```yaml
+   # Adjust based on available RAM
+   npu:
+     max_memory_mb: 4096  # Increase for larger models
+   agents:
+     max_context_length: 2048  # Reduce for memory constraints
+   ```
+
+4. **Device Optimization**
+   ```python
+   # Force NPU usage for maximum performance
+   config = AgentConfig(
+       device_preference=["NPU"],  # No fallback
+       turbo_mode=True
+   )
+   ```
 
 ## Troubleshooting
 
